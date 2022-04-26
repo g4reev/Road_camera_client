@@ -138,6 +138,7 @@ logs/
 .env
 .venv
 ./venv
+./venv/
 env/
 venv/
 ENV/
