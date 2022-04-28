@@ -1,6 +1,12 @@
-import vlc
 
-player=vlc.MediaPlayer('Rtsp:\\Admin:Q1w2e3r4t%@10.133.1.124:554')
+import vlc
+import time
+
+
+
+# rtsp://rtsp.stream/pattern demo link
+
+player=vlc.MediaPlayer('rtsp://rtsp.stream/pattern')
 player.play()
 
 while 1:

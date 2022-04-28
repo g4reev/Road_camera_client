@@ -1,28 +1,56 @@
-import sqlite3
+import os
+import mysql.connector
+from dotenv import load_dotenv
 
-# Создаем соединение с нашей базой данных
-# В нашем примере у нас это просто файл базы
-conn = sqlite3.connect('Chinook_Sqlite.sqlite')
+from mysql.connector import Error
 
-# Создаем курсор - это специальный объект который делает запросы и получает их результаты
-cursor = conn.cursor()
 
-# ТУТ БУДЕТ НАШ КОД РАБОТЫ С БАЗОЙ ДАННЫХ
-# КОД ДАЛЬНЕЙШИХ ПРИМЕРОВ ВСТАВЛЯТЬ В ЭТО МЕСТО
-# Делаем SELECT запрос к базе данных, используя обычный SQL-синтаксис
-cursor.execute("""
-SELECT COUNT(Sub.passenger) AS zero_count
-FROM 
-(SELECT id, passenger FROM Pass_in_trip WHERE passenger LIKE "1"
-ORDER BY id DESC LIMIT 5) AS Sub;
-""")
+load_dotenv()
 
-# Получаем результат сделанного запроса
-results = cursor.fetchall()
-results2 =  cursor.fetchall()
 
-print(results)   # [('A Cor Do Som',), ('Aaron Copland & London Symphony Orchestra',), ('Aaron Goldberg',)]
-print(results2)  # []
+host_ip = os.getenv('host_ip_arena')
+user_loc = os.getenv('user_arena')
+password_loc = os.getenv('password_arena')
+db_name_loc = os.getenv('db_name_arena')
 
-# Не забываем закрыть соединение с базой данных
-conn.close()
+
+def create_connection(host_name, user_name, user_password, db_name):
+    connection = None
+    try:
+        connection = mysql.connector.connect(
+            host=host_name,
+            user=user_name,
+            passwd=user_password,
+            database=db_name
+        )
+        print("Connection to MySQL DB successful")
+    except Error as e:
+        print(f"The error '{e}' occurred")
+
+    return connection
+
+
+def execute_read_query(connection, query):
+    cursor = connection.cursor()
+    result = None
+    try:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return result
+    except Error as e:
+        print(f"The error '{e}' occurred")
+        
+
+connection = create_connection(host_ip, user_loc, password_loc, db_name_loc)
+print('hello')
+
+# Добавить в запрос фильтрацию по времени- время с поля time в формате UIX со сдвигом 2 часа
+select_day_info = """
+SELECT id, photo_path, speed, ctl_place
+FROM pictures
+WHERE speed > 0 AND time > 1651054983
+"""
+day_info = execute_read_query(connection, select_day_info)
+
+for info in day_info:
+    print(info)
