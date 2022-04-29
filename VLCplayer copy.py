@@ -1,12 +1,15 @@
 
+import os
 import vlc
 import time
+from dotenv import load_dotenv
 
 
-
+load_dotenv()
 # rtsp://rtsp.stream/pattern demo link
+rstp_link_loc = os.getenv('rstp_link')
 
-player=vlc.MediaPlayer('rtsp://rtsp.stream/pattern')
+player=vlc.MediaPlayer('rtsp://10.133.2.163:8554/stream')
 player.play()
 
 while 1:
