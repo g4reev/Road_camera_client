@@ -9,9 +9,9 @@ load_dotenv()
 # rtsp://rtsp.stream/pattern demo link
 rstp_link_loc = os.getenv('rstp_link')
 
-player=vlc.MediaPlayer('rtsp://10.133.2.163:8554/stream')
-player.play()
+player=vlc.MediaPlayer(rstp_link_loc)
+# player.play()
 
 while 1:
     time.sleep(1)
-    player.video_take_snapshot(0, '.snapshot.tmp.png', 0, 0)
+    player.video_take_snapshot(0, './medie/snapshot2.tmp.png', 0, 0)

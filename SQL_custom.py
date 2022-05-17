@@ -1,84 +1,118 @@
 import os
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import mysql.connector
 
 from dotenv import load_dotenv
 
 from mysql.connector import Error
+from zmq import device
 
 
 load_dotenv()
+host_ip = os.getenv('host_ip_test')
+user = os.getenv('user_test')
+password = os.getenv('password_test')
+db_name = os.getenv('db_name_test')
+now = date.today()   # 86400 sec on 1 day
+last_day = now - timedelta(days=1)
+yesterday = last_day.strftime("%Y_%m_%d")
+print(f'Вчера это: {yesterday}')
 
-
-host_ip = os.getenv('host_ip_arena')
-user_loc = os.getenv('user_arena')
-password_loc = os.getenv('password_arena')
-db_name_loc = os.getenv('db_name_arena')
-
-now_time = datetime.now().today()   # 86400 sec on 1 day
-
-now_time_uix = now_time.timestamp()
-
-
-print(f'Время по UIX {now_time_uix}')
-
-print(f'Время по now {now_time}')
-
-
-
-
-def create_connection(host_name, user_name, user_password, db_name):
+def create_connection(host_name, user_name, user_password, database_name):
     connection = None
     try:
         connection = mysql.connector.connect(
             host=host_name,
             user=user_name,
             passwd=user_password,
-            database=db_name
+            database=database_name
         )
-        print("Connection to MySQL DB successful")
+        print(f"Connection to MySQL DB {database_name} successful")
     except Error as e:
         print(f"The error '{e}' occurred")
 
     return connection
 
+def execute_query(connection, query):
+     cursor = connection.cursor()
+     try:
+         cursor.execute(query)
+         connection.commit()
+         print("Query executed successfully")
+     except Error as e:
+         print(f"The error '{e}' occurred")
 
 def execute_read_query(connection, query):
     cursor = connection.cursor()
     result = None
     try:
         cursor.execute(query)
-        result = cursor.fetchone()        
+        result = cursor.fetchall()        
         return result
     except Error as e:
         print(f"The error '{e}' occurred")
         
 
-connection = create_connection(host_ip, user_loc, password_loc, db_name_loc)
-print('hello')
-
-# Добавить в запрос фильтрацию по времени- время с поля time в формате UIX со сдвигом 2 часа
-
-query_avd_speed = (
-    f"SELECT CAST(AVG(speed) AS CHAR(6)) "
-    f"FROM pictures "
-    f"WHERE speed > 0 AND time BETWEEN {now_time_uix-86400} AND {now_time_uix}"
+connection_loc = create_connection(host_ip, user, password, db_name)
+query_device_data = (
+    f"SELECT * "
+    f"FROM device "
+    f"WHERE id < 100"
 )
-print(query_avd_speed)
-day_avg_speed = execute_read_query(connection, query_avd_speed)
-
-query_cam_info = (
-    f"SELECT COUNT(id) AS COUNT, photo_path, ctl_place, i_crypt "
-    f"FROM pictures "
-    f"WHERE time BETWEEN {now_time_uix-86400} AND {now_time_uix} "
-    f"GROUP BY "
-    f"ctl_place"
+devices = execute_read_query(connection_loc, query_device_data)
+query_device_struc = (
+    f"SELECT * "
+    f"FROM device_db_strucure "
 )
-print(query_cam_info)
-day_cam_info = execute_read_query(connection, query_cam_info)
+structure = execute_read_query(connection_loc, query_device_struc)
+print(structure[0][1])
+for d in devices:
+    print(d)
+    host_ip_d = d[1]
+    user_d = d[7]
+    password_d = d[8] 
+    type_d = d[2]
+    
+    print(user_d)    
+    db_name_d = 'Not Founded'
+    for s in structure:
+        if type_d == s[1]:
+            db_name_d = s[2]
+            table_d =s[3]
+            field_d = s[4]
+    if db_name_d == 'Not Founded':
+        print(f'Тип устройства: {type_d} не найден в таблице device_db_strucure')
 
-cam_id = day_cam_info[1][0:7]
+    connection_d = create_connection(host_ip_d, user_d, password_d, db_name_d)
+    query_avd_speed = (
+        f"SELECT CAST(AVG({field_d}) AS CHAR(6)) "
+        f"FROM {table_d} "
+        f"WHERE {field_d} > 0 AND small_path LIKE '{yesterday}%' "
+    )
+    print(query_avd_speed)
+    day_avg_speed = execute_read_query(connection_d, query_avd_speed)
+    avg_speed = float(day_avg_speed[0][0])
+    print(avg_speed)
+    query_transits = (
+        f"SELECT COUNT(id) AS COUNT "
+        f"FROM {table_d} "
+        f"WHERE small_path LIKE '{yesterday}%' "
+    )
+    print(query_transits)
+    transits_d = execute_read_query(connection_d, query_transits)
+    transits = int(transits_d[0][0])
+    print(transits)
 
-print(f'Средняя скорость за последние 24 часа равна {day_avg_speed[0]} км/ч. Контрольное время замера: {now_time}')
-print(f'Количество проездов за сутки {day_cam_info[0]}')
-print(f'Зав. номер камеры: {cam_id} Место установки камеры: {day_cam_info[2]}, координаты: {day_cam_info[3]}')
+    query_insert = (
+        f"INSERT INTO day_information (type, ser_number, place, gps, transit, average_speed, date, status) "
+        f"VALUES ("
+        f"'{type_d}', '{d[3]}', '{d[6]}', 'N {d[4]} E {d[5]}', {transits}, {avg_speed}, '{yesterday}', 'test')"
+    )
+    print(query_insert)
+    execute_query(connection_loc, query_insert)
+    
+
+for s in structure:
+    print(s)
+
+

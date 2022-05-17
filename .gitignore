@@ -147,6 +147,12 @@ venv.bak/
 .venv/
 .vscode/
 
+# Media
+./media
+./media/
+media/
+.media/
+
 # Spyder project settings
 .spyderproject
 .spyproject
