@@ -24,6 +24,8 @@ yesterday = last_day.strftime("%Y_%m_%d")
 print(f'Вчера это: {yesterday}')
 
 log_file = open(f"./logs/{yesterday}.log", "w+")
+log_file.seek(0, 2)
+not_connet_id = []
 
 def logs_insert(context, filename):
 
@@ -55,15 +57,14 @@ def create_connection(host_name, user_name, user_password, database_name):
             logs_insert(f"Host {host_name} is not available", log_file)
             return False     
     except Error as e:
-        logs_insert(f"The error '{e}' occurred", log_file)
-        logs_insert(f"Device {type} № {ser_number} is not available, check ip_address, login and password", log_file)       
+        logs_insert(f"Check login and password", log_file)  
+        logs_insert(f"The error '{e}' occurred", log_file)             
         return False
-
     return connection
 
 def execute_query(connection, query):
-    cursor = connection.cursor()
     logs_insert(f"Query to DB: {query}", log_file)
+    cursor = connection.cursor()    
     try:
         cursor.execute(query)
         connection.commit()
@@ -113,7 +114,7 @@ def context_insert(type, ser_number, latitude, longitude, place,
         execute_query(connection, query_insert)    
 
 connection_loc = create_connection(host_ip, user, password, db_name)
-id_i = 158 #53 129 156 158 104
+id_i = 122 #122 158
 
 while device != []:    
     query_device_data = (
@@ -146,6 +147,8 @@ while device != []:
         transits = execute_read_query(connection_remote, query_transits)
         context_insert(*device[2:7], day_avg_speed[0], transits[0], yesterday, 'Test', connection_loc)
     else:
+        not_connet_id.append(device[0])
         lost_conetion(*device[2:4])
-
+logs_insert(f"Not connect device id: \n{not_connet_id}", log_file)
 log_file.close()
+
