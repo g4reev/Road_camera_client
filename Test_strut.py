@@ -1,44 +1,53 @@
 
 from datetime import date, datetime, timedelta
+from multiprocessing import connection
 import platform    # For getting the operating system name
 import subprocess  # For executing a shell command
-
-def ping(host):
-    """
-    Returns True if host (str) responds to a ping request.
-    Remember that a host may not respond to a ping (ICMP) request even if the host name is valid.
-    """
-    result = False
-    # Option for the number of packets as a function of
-    param = '-n' if platform.system().lower()=='windows' else '-c'
-
-    # Building the command. Ex: "ping -c 1 google.com"
-    command = ['ping', param, '4', host]
-    result = subprocess.call(command) == 0
-    return result
+import mysql.connector
 
 
-if ping('10.133.14.149'):
-                print ("Sexy it")
+(60, '10.133.0.83', 'krechet-sm', '1306019', '56.0459', '54.8028', ' г. Уфа, пр. Октября, Дежневский путепровод, опора №393 «УфаГорСвет» - на юг', 'prometheus', 'e9b711403ecaa5d92c88d086c0601057', 'main', 'events', 'target_speed', 'time')
+(195, '10.133.2.59', 'scat-pp', '1906008', '55.999069', '54.714272', ' г. Уфа, ул. Менделеева, 145', 'prometheus', '742b1f653d878052cea31f87510643b7', 'main', 'events', 'target_speed', 'time')
 
+host = '10.133.0.83'
+user = 'prometheus'
+password = 'e9b711403ecaa5d92c88d086c0601057'
+db = 'main'
 
-today = date.today()   # 86400 sec on 1 day
-last_day = today - timedelta(days=1)
-yesterday = last_day.strftime("%Y_%m_%d")
-print(f'Вчера это: {yesterday}')
+def create_connection(host_name, user_name, user_password, database_name):
+    connection = None
+    try:
+        connection = mysql.connector.connect(
+            host=host_name,
+            user=user_name,
+            passwd=user_password,
+            database=database_name
+        )
+        print(f"Connection to MySQL DB successful")            
+    except Error as e:        
+        print(f"The error '{e}' occurred")
+        
+    return connection
 
-log_file = open(f"./logs/{yesterday}_test.log", "w+")
+cnx = create_connection(host, user, password, db)
 
-def logs_insert(context, filename):
+def execute_read_query(connection, query):
+    if connection.is_connected():
+        print("Is connect")
+        cursor = connection.cursor()
+    result = None
+    try:
+        cursor.execute(query)
+        result = cursor.fetchone()
+        logs_insert(f"Query to DB result: {result}", log_file)       
+        return result
+    except Error as e:
+        logs_insert(f"The error '{e}' occurred", log_file)
+        logs_insert(f"Query to DB result: {result}", log_file)       
+        return result
 
-    now = datetime.now()    
-    insert_log = f"{now}: {context}\n"
-    print(insert_log)
-    filename.write(insert_log)
-
-logs_insert(f"Connection to MySQL DB  successful", log_file)
-
-logs_insert(f"Connection2 to MySQL DB successful", log_file)
+result = execute_read_query(cnx, "SELECT * FROM events")
+print(result)
 
 
 (105, '10.133.10.149', 'krechet-sm', '1709001', '55.9799', '54.7342', ' г. Уфа, Ул., Айская, 81. э\\о №23', 'prometheus', '215ee55dc14a9f78c2e15aabf6ec93fd', 'main', 'events', 'target_speed', 'time')

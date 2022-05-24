@@ -1,0 +1,2 @@
+python SQL_custom_tests.py
+pause

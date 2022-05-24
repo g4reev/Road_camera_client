@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 
 
 from mysql.connector import Error
-from zmq import device
 
 
 load_dotenv()
@@ -23,14 +22,16 @@ last_day = today - timedelta(days=1)
 yesterday = last_day.strftime("%Y_%m_%d")
 print(f'Вчера это: {yesterday}')
 
-log_file = open(f"./logs/{yesterday}.log", "w+")
+log_file = open(f"./logs/{yesterday}.log", "a")
 log_file.seek(0, 2)
 not_connet_id = []
+db_answer_error = []
 
 def logs_insert(context, filename):
 
     now = datetime.now()
-    insert_log = f"{now}: {context}\n"
+    time_format = "%Y-%m-%d %H:%M:%S"
+    insert_log = f"{now: {time_format}}: {context}\n"
     print(insert_log)
     filename.write(insert_log)
 
@@ -97,41 +98,47 @@ def context_insert(type, ser_number, latitude, longitude, place,
         f"{longitude}, {place}, {average_speed}, {transits}, {date}, {status}", log_file
     )
     query_check = (
-        f"SELECT day_inf.id "
-        f"FROM day_information AS day_inf "       
-        f"WHERE day_inf.ser_number = {ser_number} AND day_inf.type = {type }"
+        f"SELECT id "
+        f"FROM day_information "       
+        f"WHERE ser_number = '{ser_number}' AND type = '{type}'"
     )
     existing_row = execute_read_query(connection, query_check)
-    if existing_row:
-        logs_insert(f"device id = {existing_row[0]} is be", log_file)
-    else:
+    if existing_row == None or existing_row == []:    
         query_insert = (
             f"INSERT INTO day_information "
             f"(type, ser_number, latitude, longitude, place, average_speed, transits, date, status) "
             f"VALUES ("
             f"'{type}', '{ser_number}', '{latitude}', '{longitude}', '{place}', {average_speed}, {transits}, '{date}', '{status}')"
-        )        
-        execute_query(connection, query_insert)    
+        ) 
+        execute_query(connection, query_insert)
+    else:
+        logs_insert(f"device is be", log_file)
+        query_insert = (
+            f"UPDATE day_information "
+            f"SET status = '{status}', average_speed = {average_speed}, transits = {transits}, date = '{date}' "
+            f"WHERE ser_number = '{ser_number}' AND type = '{type}'"
+        )
+        execute_query(connection, query_insert)
 
-connection_loc = create_connection(host_ip, user, password, db_name)
-id_i = 122 #122 158
-
-while device != []:    
+def main_quertes(id, con_loc):
+    
     query_device_data = (
         f"SELECT d.id, d.ip_address, d.type, d.ser_number, d.latitude, d.longitude, "
         f"d.place, d.login, d.pass, s.base, s.table_name, s.column_speed, s.column_date "
         f"FROM device AS d "
         f"JOIN device_db_strucure AS s "
         f"ON s.type = d.type "
-        f"WHERE d.id > {id_i} "
+        f"WHERE d.id > {id} "
         f"ORDER BY d.id "
         f"LIMIT 1"
     )
-    device = execute_read_query(connection_loc, query_device_data)    
+    
+    device = execute_read_query(con_loc, query_device_data)    
     if device == [] or device == None:
-        break
-    id_i = device[0]
+        logs_insert(f"Device with id = {id} is last", log_file)
+        return []
     connection_remote = create_connection(device[1], device[7], device[8], device[9])
+    print(device[0])
     if connection_remote:
         query_avd_speed = (
             f"SELECT ROUND(AVG({device[11]}), 2) "
@@ -139,16 +146,38 @@ while device != []:
             f"WHERE {device[11]} > 0 AND {device[12]} LIKE '{yesterday}%' "
         )
         day_avg_speed = execute_read_query(connection_remote, query_avd_speed)
-        query_transits = (
-            f"SELECT COUNT(id) AS COUNT "
-            f"FROM {device[10]} "
-            f"WHERE {device[12]} LIKE '{yesterday}%' "
-        )
-        transits = execute_read_query(connection_remote, query_transits)
-        context_insert(*device[2:7], day_avg_speed[0], transits[0], yesterday, 'Test', connection_loc)
+        if day_avg_speed == None or day_avg_speed == []:
+            logs_insert(f"Not correct answer1 from DB device id: {device[0]}", log_file)
+            db_answer_error.append(device[0])
+        else:
+            query_transits = (
+                f"SELECT COUNT(id) AS COUNT "
+                f"FROM {device[10]} "
+                f"WHERE {device[12]} LIKE '{yesterday}%' "
+            )
+            transits = execute_read_query(connection_remote, query_transits)
+            if transits == None or transits == []:
+                logs_insert(f"Not correct answer2 from DB device id: {device[0]}", log_file)
+                db_answer_error.append(device[0])
+            else:
+                context_insert(*device[2:7], day_avg_speed[0], transits[0], yesterday, 'Test', con_loc)
     else:
-        not_connet_id.append(device[0])
+        not_connet_id.append(device[0])  # добавить сюда ИП адрес логин и пароль в лог
         lost_conetion(*device[2:4])
-logs_insert(f"Not connect device id: \n{not_connet_id}", log_file)
-log_file.close()
+    return device[0]
 
+connection_loc = create_connection(host_ip, user, password, db_name)
+id_i = 0 #122 158
+job = 1
+
+while job != []:
+    job = main_quertes(id_i, connection_loc)
+    print(job)
+    if job != [] or job != None:
+        id_i = job
+        print(id_i)
+    else:
+        break
+logs_insert(f"Not connect device id: \n{db_answer_error}", log_file)
+logs_insert(f"Not correct answer from DB device id: \n{not_connet_id}", log_file)
+log_file.close()
