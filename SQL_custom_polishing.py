@@ -188,14 +188,17 @@ if __name__ == '__main__':
     db_answer_error = []
 
     connection_loc = create_connection(host_ip, user, password, db_name)
-    id_i = 0  # 122 158
-    job = 1
+    if connection_loc:
+        id_i = 0  # 122 158
+        job = 1
 
-    while job != []:
-        job = main_quertes(id_i, connection_loc)
-        if job != [] or job is not None:
-            id_i = job
-        else:
-            break
+        while job != []:
+            job = main_quertes(id_i, connection_loc)
+            if job != [] or job is not None:
+                id_i = job
+            else:
+                break
+    else:
+        logger.error("Local DataBase is not aveleble")
     logger.error(f"Not connect device id: \n{db_answer_error}")
     logger.error(f"Not correct answer from DB device id: \n{not_connet_id}")

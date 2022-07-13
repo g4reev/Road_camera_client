@@ -134,6 +134,11 @@ celerybeat.pid
 logs/
 .logs
 
+# test file
+./test_class
+.test_class
+test_class/
+
 # Environments
 .env
 .venv

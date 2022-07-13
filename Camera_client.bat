@@ -1,1 +1,1 @@
-python SQL_custom_tests.py
+python SQL_custom_polishing.py
